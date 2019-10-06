@@ -1,0 +1,7 @@
+version: "2"
+domain: datadog.com
+repo: github.com/stefansedich/datadog-operator
+resources:
+- group: monitoring
+  version: v1alpha1
+  kind: Monitor
