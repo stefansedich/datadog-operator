@@ -13,6 +13,8 @@ spec:
     plural: monitors
     singular: monitor
   scope: ""
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Monitor is the Schema for the monitors API
@@ -31,9 +33,40 @@ spec:
           type: object
         spec:
           description: MonitorSpec defines the desired state of Monitor
+          properties:
+            message:
+              type: string
+            name:
+              type: string
+            options:
+              description: RawMessage is a raw encoded JSON value. It implements Marshaler
+                and Unmarshaler and can be used to delay JSON decoding or precompute
+                a JSON encoding.
+              format: byte
+              type: string
+            query:
+              type: string
+            tags:
+              items:
+                type: string
+              type: array
+            type:
+              type: string
+          required:
+          - message
+          - name
+          - options
+          - query
+          - tags
+          - type
           type: object
         status:
           description: MonitorStatus defines the observed state of Monitor
+          properties:
+            monitorID:
+              type: integer
+          required:
+          - monitorID
           type: object
       type: object
   version: v1alpha1

@@ -16,6 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	json "encoding/json"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,17 +25,21 @@ import (
 
 // MonitorSpec defines the desired state of Monitor
 type MonitorSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Type    string          `json:"type"`
+	Query   string          `json:"query"`
+	Name    string          `json:"name"`
+	Message string          `json:"message"`
+	Tags    []string        `json:"tags"`
+	Options json.RawMessage `json:"options"`
 }
 
 // MonitorStatus defines the observed state of Monitor
 type MonitorStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	MonitorID int `json:"monitorID"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // Monitor is the Schema for the monitors API
 type Monitor struct {
