@@ -59,7 +59,11 @@ func updateMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
 
 	existingDDMonitor, err := client.GetMonitor(monitor.Status.MonitorID)
 	if err != nil {
-		// TODO: if this is a 404, clear out the monitorID in status and requeue
+		if datadog.IsNotFound(err) {
+			monitor.Status.MonitorID = 0
+
+			return nil
+		}
 
 		return err
 	}
