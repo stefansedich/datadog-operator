@@ -3,6 +3,7 @@ package datadog
 import (
 	"encoding/json"
 
+	"github.com/mitchellh/hashstructure"
 	datadogapi "github.com/zorkian/go-datadog-api"
 
 	monitoringv1alpha1 "github.com/stefansedich/datadog-operator/api/v1alpha1"
@@ -11,27 +12,30 @@ import (
 type Monitor = datadogapi.Monitor
 type Options = datadogapi.Options
 
-func HasMonitorChanged(ddMonitor *Monitor, monitor *monitoringv1alpha1.Monitor) bool {
-	return true
-}
-
-func PopulateMonitor(ddMonitor *Monitor, monitor *monitoringv1alpha1.Monitor) error {
+func UpdateMonitor(ddMonitor *Monitor, monitor *monitoringv1alpha1.Monitor) (bool, error) {
 	spec := monitor.Spec
-	status := monitor.Status
-	options := &Options{}
 
-	err := json.Unmarshal(spec.Options.Raw, options)
+	originalHash, err := hashstructure.Hash(ddMonitor, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	ddMonitor.Id = &status.MonitorID
+	err = json.Unmarshal(spec.Options.Raw, &ddMonitor.Options)
+	if err != nil {
+		return false, err
+	}
+
+	ddMonitor.Id = &monitor.Status.MonitorID
 	ddMonitor.Type = &spec.Type
 	ddMonitor.Name = &spec.Name
 	ddMonitor.Message = &spec.Message
 	ddMonitor.Query = &spec.Query
 	ddMonitor.Tags = spec.Tags
-	ddMonitor.Options = options
 
-	return nil
+	newHash, err := hashstructure.Hash(ddMonitor, nil)
+	if err != nil {
+		return false, err
+	}
+
+	return originalHash != newHash, nil
 }

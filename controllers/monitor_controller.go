@@ -33,12 +33,11 @@ type MonitorReconciler struct {
 	Log logr.Logger
 }
 
-func createMonitor(reconciler *MonitorReconciler, log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
+func createMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
 	client := datadog.NewClient()
-	ctx := context.Background()
 
 	ddMonitor := &datadog.Monitor{}
-	err := datadog.PopulateMonitor(ddMonitor, monitor)
+	_, err := datadog.UpdateMonitor(ddMonitor, monitor)
 	if err != nil {
 		return err
 	}
@@ -50,13 +49,6 @@ func createMonitor(reconciler *MonitorReconciler, log logr.Logger, monitor *moni
 
 	monitor.Status.MonitorID = *newDDMonitor.Id
 
-	err = reconciler.Status().Update(ctx, monitor)
-	if err != nil {
-		log.Error(err, "Failed to update monitor status")
-
-		return err
-	}
-
 	log.V(1).Info("Successfully created monitor", "monitor_id", *newDDMonitor.Id)
 
 	return nil
@@ -65,23 +57,25 @@ func createMonitor(reconciler *MonitorReconciler, log logr.Logger, monitor *moni
 func updateMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
 	client := datadog.NewClient()
 
-	ddMonitor, err := client.GetMonitor(monitor.Status.MonitorID)
+	existingDDMonitor, err := client.GetMonitor(monitor.Status.MonitorID)
+	if err != nil {
+		// TODO: if this is a 404, clear out the monitorID in status and requeue
+
+		return err
+	}
+
+	changed, err := datadog.UpdateMonitor(existingDDMonitor, monitor)
 	if err != nil {
 		return err
 	}
 
-	if !datadog.HasMonitorChanged(ddMonitor, monitor) {
+	if !changed {
 		log.V(1).Info("Skipping updating unchanged Monitor")
 
 		return nil
 	}
 
-	err = datadog.PopulateMonitor(ddMonitor, monitor)
-	if err != nil {
-		return err
-	}
-
-	err = client.UpdateMonitor(ddMonitor)
+	err = client.UpdateMonitor(existingDDMonitor)
 	if err != nil {
 
 		return err
@@ -119,7 +113,7 @@ func (r *MonitorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// TODO: Handle delete
 
 	if monitor.Status.MonitorID == 0 {
-		err := createMonitor(r, log, monitor)
+		err := createMonitor(log, monitor)
 		if err != nil {
 			log.Error(err, "Failed to create monitor")
 
@@ -132,6 +126,13 @@ func (r *MonitorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			return ctrl.Result{}, err
 		}
+	}
+
+	err = r.Status().Update(ctx, monitor)
+	if err != nil {
+		log.Error(err, "Failed to update monitor status")
+
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

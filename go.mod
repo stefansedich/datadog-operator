@@ -5,6 +5,8 @@ go 1.13
 require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/go-logr/logr v0.1.0
+	github.com/google/go-cmp v0.3.0
+	github.com/mitchellh/hashstructure v1.0.0
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
