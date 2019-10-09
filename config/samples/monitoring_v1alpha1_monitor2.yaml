@@ -1,0 +1,7 @@
+apiVersion: monitoring.datadog.com/v1alpha1
+kind: Monitor2
+metadata:
+  name: monitor2-sample
+spec:
+  # Add fields here
+  foo: bar

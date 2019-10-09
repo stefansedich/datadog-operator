@@ -8,7 +8,7 @@ It enables you to keep things like your monitor definitions and dashboards close
 
 ## Under development
 
-This is all currently just a POC too see what is possible and is under rapid hacking, don't go using it in production!
+This is all currently just a POC to see what is possible and is under rapid hacking, don't go using it in production!
 
 ## Supported
 

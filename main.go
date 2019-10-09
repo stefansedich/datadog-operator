@@ -20,8 +20,8 @@ import (
 	"os"
 
 	monitoringv1alpha1 "github.com/stefansedich/datadog-operator/api/v1alpha1"
-	"github.com/stefansedich/datadog-operator/controllers"
-	"github.com/stefansedich/datadog-operator/internal/datadog"
+	"github.com/stefansedich/datadog-operator/pkg/controllers"
+	"github.com/stefansedich/datadog-operator/pkg/datadog"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -50,7 +50,7 @@ func main() {
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.Logger(true))
+	ctrl.SetLogger(zap.Logger(false))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,

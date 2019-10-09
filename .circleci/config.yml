@@ -17,7 +17,7 @@ jobs:
       - remote_docker
       - run:
           name: Build image
-          command: docker build -t build -f Dockerfile.build .
+          command: docker build -t build -f ./build/Dockerfile.build .
       - run:
           name: Tests
           command: docker run build test
