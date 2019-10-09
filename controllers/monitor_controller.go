@@ -19,25 +19,40 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	monitoringv1alpha1 "github.com/stefansedich/datadog-operator/api/v1alpha1"
+	"github.com/stefansedich/datadog-operator/internal/controller"
 	"github.com/stefansedich/datadog-operator/internal/datadog"
+)
+
+const (
+	finalizerName = "monitoring.datadog.com.monitor"
 )
 
 // MonitorReconciler reconciles a Monitor object
 type MonitorReconciler struct {
 	client.Client
-	Log logr.Logger
+	Log           logr.Logger
+	DataDogClient *datadog.Client
 }
 
-func createMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
-	client := datadog.NewClient()
+func isBeingCreated(monitor *monitoringv1alpha1.Monitor) bool {
+	return monitor.Status.MonitorID == 0
+}
+
+func isBeingDeleted(monitor *monitoringv1alpha1.Monitor) bool {
+	return !monitor.ObjectMeta.DeletionTimestamp.IsZero() &&
+		controller.HasFinalizer(&monitor.ObjectMeta, finalizerName)
+}
+
+func createMonitor(reconciler *MonitorReconciler, monitor *monitoringv1alpha1.Monitor) error {
+	client := reconciler.DataDogClient
+	log := reconciler.Log
 
 	ddMonitor := &datadog.Monitor{}
-	_, err := datadog.UpdateMonitor(ddMonitor, monitor)
+	_, err := datadog.ChangeMonitor(ddMonitor, monitor)
 	if err != nil {
 		return err
 	}
@@ -49,28 +64,39 @@ func createMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
 
 	monitor.Status.MonitorID = *newDDMonitor.Id
 
+	err = reconciler.Status().Update(context.Background(), monitor)
+	if err != nil {
+		return err
+	}
+
+	controller.AddFinalizer(&monitor.ObjectMeta, finalizerName)
+
+	err = reconciler.Update(context.Background(), monitor)
+	if err != nil {
+		return err
+	}
+
 	log.V(1).Info("Successfully created monitor", "monitor_id", *newDDMonitor.Id)
 
 	return nil
 }
 
-func updateMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
-	client := datadog.NewClient()
+func updateMonitor(reconciler *MonitorReconciler, monitor *monitoringv1alpha1.Monitor) error {
+	client := reconciler.DataDogClient
+	log := reconciler.Log.WithValues("monitor_id", monitor.Status.MonitorID)
 
-	existingDDMonitor, err := client.GetMonitor(monitor.Status.MonitorID)
+	ddMonitor, err := client.GetMonitor(monitor.Status.MonitorID)
 	if err != nil {
 		if datadog.IsNotFound(err) {
-			log.V(1).Info("Monitor not found, clearing monitor ID")
+			log.V(1).Info("Existing monitor not found, creating again")
 
-			monitor.Status.MonitorID = 0
-
-			return nil
+			return createMonitor(reconciler, monitor)
 		}
 
 		return err
 	}
 
-	changed, err := datadog.UpdateMonitor(existingDDMonitor, monitor)
+	changed, err := datadog.ChangeMonitor(ddMonitor, monitor)
 	if err != nil {
 		return err
 	}
@@ -81,13 +107,34 @@ func updateMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
 		return nil
 	}
 
-	err = client.UpdateMonitor(existingDDMonitor)
+	err = client.UpdateMonitor(ddMonitor)
 	if err != nil {
 
 		return err
 	}
 
 	log.V(1).Info("Successfully updated monitor")
+
+	return nil
+}
+
+func deleteMonitor(reconciler *MonitorReconciler, monitor *monitoringv1alpha1.Monitor) error {
+	client := reconciler.DataDogClient
+	log := reconciler.Log.WithValues("monitor_id", monitor.Status.MonitorID)
+
+	err := client.DeleteMonitor(monitor.Status.MonitorID)
+	if err != nil {
+		return datadog.IgnoreNotFound(err)
+	}
+
+	controller.RemoveFinalizer(&monitor.ObjectMeta, finalizerName)
+
+	err = reconciler.Update(context.Background(), monitor)
+	if err != nil {
+		return err
+	}
+
+	log.V(1).Info("Successfully deleted monitor")
 
 	return nil
 }
@@ -102,43 +149,30 @@ func (r *MonitorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	monitor := &monitoringv1alpha1.Monitor{}
 	err := r.Get(ctx, req.NamespacedName, monitor)
 	if err != nil {
-		if apierrs.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-
-		return ctrl.Result{}, err
+		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	log = log.WithValues(
-		"monitor_id",
-		monitor.Status.MonitorID,
-		"monitor_name",
-		monitor.Spec.Name,
-	)
+	if isBeingDeleted(monitor) {
+		err := deleteMonitor(r, monitor)
+		if err != nil {
+			log.Error(err, "Failed to delete monitor")
 
-	// TODO: Handle delete
-
-	if monitor.Status.MonitorID == 0 {
-		err := createMonitor(log, monitor)
+			return ctrl.Result{}, err
+		}
+	} else if isBeingCreated(monitor) {
+		err := createMonitor(r, monitor)
 		if err != nil {
 			log.Error(err, "Failed to create monitor")
 
 			return ctrl.Result{}, err
 		}
 	} else {
-		err = updateMonitor(log, monitor)
+		err := updateMonitor(r, monitor)
 		if err != nil {
 			log.Error(err, "Failed to update monitor")
 
 			return ctrl.Result{}, err
 		}
-	}
-
-	err = r.Status().Update(ctx, monitor)
-	if err != nil {
-		log.Error(err, "Failed to update monitor status")
-
-		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

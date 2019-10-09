@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 
 	"github.com/mitchellh/hashstructure"
-	datadogapi "github.com/zorkian/go-datadog-api"
+	datadog "github.com/zorkian/go-datadog-api"
 
 	monitoringv1alpha1 "github.com/stefansedich/datadog-operator/api/v1alpha1"
 )
 
-type Monitor = datadogapi.Monitor
-type Options = datadogapi.Options
+type Monitor = datadog.Monitor
+type Options = datadog.Options
 
-func UpdateMonitor(ddMonitor *Monitor, monitor *monitoringv1alpha1.Monitor) (bool, error) {
+func ChangeMonitor(ddMonitor *Monitor, monitor *monitoringv1alpha1.Monitor) (bool, error) {
 	spec := monitor.Spec
 
 	originalHash, err := hashstructure.Hash(ddMonitor, nil)
