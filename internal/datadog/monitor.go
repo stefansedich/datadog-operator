@@ -20,7 +20,7 @@ func PopulateMonitor(ddMonitor *Monitor, monitor *monitoringv1alpha1.Monitor) er
 	status := monitor.Status
 	options := &Options{}
 
-	err := json.Unmarshal(spec.Options, options)
+	err := json.Unmarshal(spec.Options.Raw, options)
 	if err != nil {
 		return err
 	}

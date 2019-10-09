@@ -16,8 +16,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	json "encoding/json"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -25,12 +25,12 @@ import (
 
 // MonitorSpec defines the desired state of Monitor
 type MonitorSpec struct {
-	Type    string          `json:"type"`
-	Query   string          `json:"query"`
-	Name    string          `json:"name"`
-	Message string          `json:"message"`
-	Tags    []string        `json:"tags"`
-	Options json.RawMessage `json:"options"`
+	Type    string                `json:"type"`
+	Query   string                `json:"query"`
+	Name    string                `json:"name"`
+	Message string                `json:"message"`
+	Tags    []string              `json:"tags"`
+	Options *runtime.RawExtension `json:"options"`
 }
 
 // MonitorStatus defines the observed state of Monitor
