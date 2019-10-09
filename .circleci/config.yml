@@ -1,0 +1,27 @@
+version: 2.1
+executors:
+  default:
+    docker:
+      - image: circleci/golang:1.13.1
+        environment:
+          IMAGE: datadog-operator
+commands:
+  remote_docker:
+    steps:
+      - setup_remote_docker
+jobs:
+  build_test:
+    executor: default
+    steps:
+      - checkout
+      - remote_docker
+      - run:
+          name: Build image
+          command: docker build -t build .
+      - run:
+          name: Tests
+          command: docker run build test
+workflows:
+  build:
+    jobs:
+      - build_test
