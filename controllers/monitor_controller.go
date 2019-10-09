@@ -60,6 +60,8 @@ func updateMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
 	existingDDMonitor, err := client.GetMonitor(monitor.Status.MonitorID)
 	if err != nil {
 		if datadog.IsNotFound(err) {
+			log.V(1).Info("Monitor not found, clearing monitor ID")
+
 			monitor.Status.MonitorID = 0
 
 			return nil
@@ -74,7 +76,7 @@ func updateMonitor(log logr.Logger, monitor *monitoringv1alpha1.Monitor) error {
 	}
 
 	if !changed {
-		log.V(1).Info("Skipping updating unchanged Monitor")
+		log.V(1).Info("Skipping update of unchanged monitor")
 
 		return nil
 	}
